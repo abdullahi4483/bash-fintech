@@ -3,32 +3,34 @@ import { Link, useNavigate } from "react-router";
 import { Shield, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useAppContext } from "../context/AppContext";
+import { ADMIN_CREDENTIALS } from "../auth/adminCredentials";
 
 export function Login() {
   const { users, setCurrentUser } = useAppContext();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [userType, setUserType] = useState<"client" | "admin">("client");
   const navigate = useNavigate();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (userType === "admin") {
-      if (email === "admin@gmail.com" && password === "12345678") {
-        navigate("/admin");
-      } else {
-        alert("Please enter valid admin credentials");
-      }
+    if (
+      normalizedEmail === ADMIN_CREDENTIALS.email &&
+      password === ADMIN_CREDENTIALS.password
+    ) {
+      setCurrentUser(null);
+      navigate("/admin");
+      return;
+    }
+
+    const user = users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    if (user && user.password === password) {
+      setCurrentUser(user);
+      navigate("/dashboard");
     } else {
-      const user = users.find((u) => u.email === email);
-      if (user && user.password === password) {
-        setCurrentUser(user);
-        navigate("/dashboard");
-      } else {
-        alert("Invalid credentials.");
-      }
+      alert("Invalid credentials.");
     }
   };
 
@@ -70,32 +72,6 @@ export function Login() {
 
         {/* Login Form */}
         <div className="p-8 rounded-2xl bg-gradient-to-br from-[#141e32]/80 to-[#0a0e1a]/80 backdrop-blur-xl border border-[#c9a84c]/20">
-          {/* User Type Toggle */}
-          <div className="flex gap-2 mb-6 p-1 rounded-lg bg-white/5">
-            <button
-              type="button"
-              onClick={() => setUserType("client")}
-              className={`flex-1 py-2 rounded-md transition-all ${
-                userType === "client"
-                  ? "bg-[#c9a84c] text-[#0a0e1a]"
-                  : "text-white/60 hover:text-white"
-              }`}
-            >
-              Client
-            </button>
-            <button
-              type="button"
-              onClick={() => setUserType("admin")}
-              className={`flex-1 py-2 rounded-md transition-all ${
-                userType === "admin"
-                  ? "bg-[#c9a84c] text-[#0a0e1a]"
-                  : "text-white/60 hover:text-white"
-              }`}
-            >
-              Admin
-            </button>
-          </div>
-
           <form onSubmit={handleLogin} className="space-y-4">
             {/* Email */}
             <div>

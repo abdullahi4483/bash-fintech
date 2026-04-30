@@ -5,6 +5,7 @@ export interface UserType {
   name: string;
   email: string;
   password?: string;
+  phone?: string;
   balance: number;
   status: 'Active' | 'Suspended';
   joined: string;
@@ -52,7 +53,7 @@ interface AppContextType {
   withdrawals: WithdrawalType[];
   messages: MessageType[];
   currentUser: UserType | null;
-  addUser: (user: Omit<UserType, 'id' | 'joined'>) => void;
+  addUser: (user: Omit<UserType, 'id' | 'joined'>) => UserType;
   updateUser: (id: number, user: Partial<UserType>) => void;
   deleteUser: (id: number) => void;
   setCurrentUser: (user: UserType | null) => void;
@@ -65,18 +66,22 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const defaultUsers: UserType[] = [
+  { id: 1, name: 'John Anderson', email: 'john@example.com', password: 'password123', balance: 125430, status: 'Active', joined: '2025-01-15', accountType: 'Premium' },
+  { id: 2, name: 'Sarah Williams', email: 'sarah@example.com', password: 'password123', balance: 89250, status: 'Active', joined: '2025-02-20', accountType: 'Standard' },
+  { id: 3, name: 'Mike Johnson', email: 'mike@example.com', password: 'password123', balance: 45680, status: 'Suspended', joined: '2024-11-10', accountType: 'Standard' },
+  { id: 4, name: 'Emily Davis', email: 'emily@example.com', password: 'password123', balance: 156890, status: 'Active', joined: '2024-12-05', accountType: 'Premium' },
+  { id: 5, name: 'Tom Brown', email: 'tom@example.com', password: 'password123', balance: 32100, status: 'Active', joined: '2026-01-08', accountType: 'Basic' },
+  { id: 6, name: 'Lisa Garcia', email: 'lisa@example.com', password: 'password123', balance: 98450, status: 'Active', joined: '2025-03-12', accountType: 'Premium' },
+  { id: 7, name: 'David Martinez', email: 'david@example.com', password: 'password123', balance: 67230, status: 'Suspended', joined: '2025-01-28', accountType: 'Standard' },
+  { id: 8, name: 'Jessica Wilson', email: 'jessica@example.com', password: 'password123', balance: 142000, status: 'Active', joined: '2024-10-15', accountType: 'Premium' },
+];
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Initialize with sample data
-  const [users, setUsers] = useState<UserType[]>([
-    { id: 1, name: 'John Anderson', email: 'john@example.com', password: 'password123', balance: 125430, status: 'Active', joined: '2025-01-15', accountType: 'Premium' },
-    { id: 2, name: 'Sarah Williams', email: 'sarah@example.com', password: 'password123', balance: 89250, status: 'Active', joined: '2025-02-20', accountType: 'Standard' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', password: 'password123', balance: 45680, status: 'Suspended', joined: '2024-11-10', accountType: 'Standard' },
-    { id: 4, name: 'Emily Davis', email: 'emily@example.com', password: 'password123', balance: 156890, status: 'Active', joined: '2024-12-05', accountType: 'Premium' },
-    { id: 5, name: 'Tom Brown', email: 'tom@example.com', password: 'password123', balance: 32100, status: 'Active', joined: '2026-01-08', accountType: 'Basic' },
-    { id: 6, name: 'Lisa Garcia', email: 'lisa@example.com', password: 'password123', balance: 98450, status: 'Active', joined: '2025-03-12', accountType: 'Premium' },
-    { id: 7, name: 'David Martinez', email: 'david@example.com', password: 'password123', balance: 67230, status: 'Suspended', joined: '2025-01-28', accountType: 'Standard' },
-    { id: 8, name: 'Jessica Wilson', email: 'jessica@example.com', password: 'password123', balance: 142000, status: 'Active', joined: '2024-10-15', accountType: 'Premium' },
-  ]);
+  const [users, setUsers] = useState<UserType[]>(() => {
+    const savedUsers = localStorage.getItem('users');
+    return savedUsers ? JSON.parse(savedUsers) : defaultUsers;
+  });
 
   const [transactions, setTransactions] = useState<TransactionType[]>([
     { id: 1, userId: 1, date: '2026-04-03', time: '10:30 AM', amount: 5000, type: 'Deposit', status: 'Completed', description: 'Salary Payment' },
@@ -111,6 +116,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser]);
 
+  useEffect(() => {
+    localStorage.setItem('users', JSON.stringify(users));
+  }, [users]);
+
   // Update current user when users array changes
   useEffect(() => {
     if (currentUser) {
@@ -128,6 +137,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       joined: new Date().toISOString().split('T')[0],
     };
     setUsers([...users, newUser]);
+    return newUser;
   };
 
   const updateUser = (id: number, updates: Partial<UserType>) => {

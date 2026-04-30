@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { Shield, Mail, Lock, User, Eye, EyeOff, Phone } from "lucide-react";
 import { motion } from "motion/react";
 import { useAppContext } from "../context/AppContext";
+import { ADMIN_CREDENTIALS } from "../auth/adminCredentials";
 
 export function Signup() {
   const { addUser, setCurrentUser, users } = useAppContext();
@@ -18,6 +19,8 @@ export function Signup() {
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
     if (password !== confirmPassword) {
       alert("Passwords do not match");
       return;
@@ -26,29 +29,27 @@ export function Signup() {
       alert("Please agree to the terms and conditions");
       return;
     }
-    if (users.find((u) => u.email === email)) {
+    if (normalizedEmail === ADMIN_CREDENTIALS.email) {
+      alert("This email is reserved for admin access");
+      return;
+    }
+    if (users.find((u) => u.email.toLowerCase() === normalizedEmail)) {
       alert("Email already exists");
       return;
     }
 
-    // Create new user
-    addUser({
+    const newUser = addUser({
       name: fullName,
-      email,
+      email: normalizedEmail,
+      phone,
       password,
       balance: 0,
       status: "Active",
       accountType: "Basic",
     });
 
-    // Find the newly created user and set as current
-    const newUser =
-      users.find((u) => u.email === email) || users[users.length - 1];
-    if (newUser) {
-      setCurrentUser(newUser);
-    }
-
-    navigate("/login");
+    setCurrentUser(newUser);
+    navigate("/dashboard");
   };
 
   return (

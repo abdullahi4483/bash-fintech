@@ -1,11 +1,119 @@
-import { User, Bell, Shield, Globe } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
+import { Bell, CheckCircle, Globe, Shield, User } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useAppContext } from '../../context/AppContext';
 
 export function Settings() {
+  const { currentUser, updateUser } = useAppContext();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [language, setLanguage] = useState('en');
+  const [currency, setCurrency] = useState('usd');
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    setFullName(currentUser.name);
+    setEmail(currentUser.email);
+    setPhone(currentUser.phone || '');
+
+    const savedSettings = localStorage.getItem(`settings:${currentUser.id}`);
+    if (savedSettings) {
+      const settings = JSON.parse(savedSettings);
+      setEmailNotifications(settings.emailNotifications ?? true);
+      setPushNotifications(settings.pushNotifications ?? true);
+      setTwoFactorEnabled(settings.twoFactorEnabled ?? false);
+      setLanguage(settings.language ?? 'en');
+      setCurrency(settings.currency ?? 'usd');
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    localStorage.setItem(
+      `settings:${currentUser.id}`,
+      JSON.stringify({
+        emailNotifications,
+        pushNotifications,
+        twoFactorEnabled,
+        language,
+        currency,
+      })
+    );
+  }, [currentUser, emailNotifications, pushNotifications, twoFactorEnabled, language, currency]);
+
+  const showSaved = (setter: (value: boolean) => void) => {
+    setter(true);
+    window.setTimeout(() => setter(false), 2500);
+  };
+
+  const handleProfileSave = (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!currentUser) {
+      alert('Please log in first');
+      return;
+    }
+    if (!fullName.trim() || !email.trim()) {
+      alert('Name and email are required');
+      return;
+    }
+
+    updateUser(currentUser.id, {
+      name: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+    });
+    showSaved(setProfileSaved);
+  };
+
+  const handlePasswordSave = (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!currentUser) {
+      alert('Please log in first');
+      return;
+    }
+    if (currentUser.password && currentPassword !== currentUser.password) {
+      alert('Current password is incorrect');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      alert('New password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+
+    updateUser(currentUser.id, { password: newPassword });
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    showSaved(setPasswordSaved);
+  };
+
+  if (!currentUser) {
+    return (
+      <div>
+        <h1 className="font-heading mb-2" style={{ fontSize: '36px', color: '#ffffff' }}>
+          Settings
+        </h1>
+        <p style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Please sign in to manage your account settings.</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -17,8 +125,8 @@ export function Settings() {
       </div>
 
       <div className="max-w-3xl space-y-6">
-        {/* Profile Settings */}
-        <motion.div
+        <motion.form
+          onSubmit={handleProfileSave}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="p-6 rounded-xl bg-gradient-to-br from-[#141e32]/60 to-[#0a0e1a]/60 backdrop-blur-xl border border-[#c9a84c]/20"
@@ -37,7 +145,8 @@ export function Settings() {
               </label>
               <input
                 type="text"
-                defaultValue="John Anderson"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all"
               />
             </div>
@@ -47,7 +156,8 @@ export function Settings() {
               </label>
               <input
                 type="email"
-                defaultValue="john.anderson@example.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all"
               />
             </div>
@@ -57,18 +167,28 @@ export function Settings() {
               </label>
               <input
                 type="tel"
-                defaultValue="+1 (555) 123-4567"
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="Add your phone number"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white placeholder:text-white/40 focus:border-[#c9a84c] focus:outline-none transition-all"
               />
             </div>
-            <button className="px-6 py-3 bg-[#c9a84c] text-[#0a0e1a] rounded-lg hover:bg-[#b89640] transition-all hover:scale-105">
-              Save Changes
-            </button>
+            <div className="flex items-center gap-3">
+              <button type="submit" className="px-6 py-3 bg-[#c9a84c] text-[#0a0e1a] rounded-lg hover:bg-[#b89640] transition-all hover:scale-105">
+                Save Profile
+              </button>
+              {profileSaved && (
+                <span className="inline-flex items-center gap-2 text-[#10b981]">
+                  <CheckCircle className="w-4 h-4" />
+                  Saved
+                </span>
+              )}
+            </div>
           </div>
-        </motion.div>
+        </motion.form>
 
-        {/* Security Settings */}
-        <motion.div
+        <motion.form
+          onSubmit={handlePasswordSave}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -81,7 +201,7 @@ export function Settings() {
             </h2>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <div>
                 <div style={{ color: '#ffffff' }} className="mb-1">
@@ -92,28 +212,63 @@ export function Settings() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
-                className={`relative w-12 h-6 rounded-full transition-all ${
-                  twoFactorEnabled ? 'bg-[#c9a84c]' : 'bg-white/20'
-                }`}
+                className={`relative w-12 h-6 rounded-full transition-all ${twoFactorEnabled ? 'bg-[#c9a84c]' : 'bg-white/20'}`}
               >
-                <div
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
-                    twoFactorEnabled ? 'left-7' : 'left-1'
-                  }`}
-                />
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${twoFactorEnabled ? 'left-7' : 'left-1'}`} />
               </button>
             </div>
 
             <div>
-              <button className="w-full px-6 py-3 border border-[#c9a84c]/40 text-white rounded-lg hover:border-[#c9a84c] transition-all">
+              <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                Current Password
+              </label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all"
+              />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button type="submit" className="px-6 py-3 border border-[#c9a84c]/40 text-white rounded-lg hover:border-[#c9a84c] transition-all">
                 Change Password
               </button>
+              {passwordSaved && (
+                <span className="inline-flex items-center gap-2 text-[#10b981]">
+                  <CheckCircle className="w-4 h-4" />
+                  Updated
+                </span>
+              )}
             </div>
           </div>
-        </motion.div>
+        </motion.form>
 
-        {/* Notification Settings */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -128,55 +283,41 @@ export function Settings() {
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between py-3 border-b border-white/10">
-              <div>
-                <div style={{ color: '#ffffff' }} className="mb-1">
-                  Email Notifications
+            {[
+              {
+                label: 'Email Notifications',
+                description: 'Receive transaction alerts via email',
+                value: emailNotifications,
+                onChange: setEmailNotifications,
+              },
+              {
+                label: 'Push Notifications',
+                description: 'Receive notifications on your device',
+                value: pushNotifications,
+                onChange: setPushNotifications,
+              },
+            ].map((item, index) => (
+              <div key={item.label} className={`flex items-center justify-between py-3 ${index === 0 ? 'border-b border-white/10' : ''}`}>
+                <div>
+                  <div style={{ color: '#ffffff' }} className="mb-1">
+                    {item.label}
+                  </div>
+                  <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                    {item.description}
+                  </div>
                 </div>
-                <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                  Receive transaction alerts via email
-                </div>
+                <button
+                  type="button"
+                  onClick={() => item.onChange(!item.value)}
+                  className={`relative w-12 h-6 rounded-full transition-all ${item.value ? 'bg-[#c9a84c]' : 'bg-white/20'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${item.value ? 'left-7' : 'left-1'}`} />
+                </button>
               </div>
-              <button
-                onClick={() => setEmailNotifications(!emailNotifications)}
-                className={`relative w-12 h-6 rounded-full transition-all ${
-                  emailNotifications ? 'bg-[#c9a84c]' : 'bg-white/20'
-                }`}
-              >
-                <div
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
-                    emailNotifications ? 'left-7' : 'left-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between py-3">
-              <div>
-                <div style={{ color: '#ffffff' }} className="mb-1">
-                  Push Notifications
-                </div>
-                <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                  Receive notifications on your device
-                </div>
-              </div>
-              <button
-                onClick={() => setPushNotifications(!pushNotifications)}
-                className={`relative w-12 h-6 rounded-full transition-all ${
-                  pushNotifications ? 'bg-[#c9a84c]' : 'bg-white/20'
-                }`}
-              >
-                <div
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
-                    pushNotifications ? 'left-7' : 'left-1'
-                  }`}
-                />
-              </button>
-            </div>
+            ))}
           </div>
         </motion.div>
 
-        {/* Preferences */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -195,7 +336,11 @@ export function Settings() {
               <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                 Language
               </label>
-              <select className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all appearance-none cursor-pointer">
+              <select
+                value={language}
+                onChange={(event) => setLanguage(event.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all appearance-none cursor-pointer"
+              >
                 <option value="en">English</option>
                 <option value="es">Spanish</option>
                 <option value="fr">French</option>
@@ -206,11 +351,15 @@ export function Settings() {
               <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                 Currency
               </label>
-              <select className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all appearance-none cursor-pointer">
+              <select
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white focus:border-[#c9a84c] focus:outline-none transition-all appearance-none cursor-pointer"
+              >
                 <option value="usd">USD ($)</option>
-                <option value="eur">EUR (€)</option>
-                <option value="gbp">GBP (£)</option>
-                <option value="jpy">JPY (¥)</option>
+                <option value="eur">EUR (EUR)</option>
+                <option value="gbp">GBP (GBP)</option>
+                <option value="jpy">JPY (JPY)</option>
               </select>
             </div>
           </div>

@@ -1,7 +1,8 @@
-import { Search, Filter, MoreVertical, X, User, Mail, DollarSign, Calendar, CreditCard, Shield, Edit, Trash2 } from 'lucide-react';
+import { Search, Filter, MoreVertical, X, User, Mail, DollarSign, Calendar, CreditCard, Shield, Edit, Trash2, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useRef, useEffect } from 'react';
 import { useAppContext, UserType } from '../../context/AppContext';
+import { ADMIN_CREDENTIALS } from '../../auth/adminCredentials';
 
 export function Users() {
   const { users, addUser, updateUser, deleteUser } = useAppContext();
@@ -17,31 +18,46 @@ export function Users() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
   const [accountType, setAccountType] = useState<string>('Standard');
   const [status, setStatus] = useState<'Active' | 'Suspended'>('Active');
 
+  const resetForm = () => {
+    setFirstName('');
+    setLastName('');
+    setEmail('');
+    setPassword('');
+    setInitialBalance('');
+    setAccountType('Standard');
+    setStatus('Active');
+  };
+
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName || !lastName || !email || !initialBalance) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!firstName || !lastName || !email || !password || !initialBalance) {
       alert('Please fill in all fields');
+      return;
+    }
+    if (normalizedEmail === ADMIN_CREDENTIALS.email) {
+      alert('This email is reserved for admin access');
+      return;
+    }
+    if (users.some((user) => user.email.toLowerCase() === normalizedEmail)) {
+      alert('Email already exists');
       return;
     }
     addUser({
       name: `${firstName} ${lastName}`,
-      email,
-      password: 'password123', // Default password
+      email: normalizedEmail,
+      password,
       balance: parseFloat(initialBalance),
       status,
       accountType
     });
-    // Reset form
-    setFirstName('');
-    setLastName('');
-    setEmail('');
-    setInitialBalance('');
-    setAccountType('Standard');
-    setStatus('Active');
+    resetForm();
     setShowAddModal(false);
   };
 
@@ -57,6 +73,7 @@ export function Users() {
     setFirstName(first);
     setLastName(last.join(' '));
     setEmail(user.email);
+    setPassword('');
     setInitialBalance(user.balance.toString());
     setAccountType(user.accountType || 'Standard');
     setStatus(user.status);
@@ -72,24 +89,35 @@ export function Users() {
 
   const handleUpdateUser = (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
     if (!firstName || !lastName || !email || !initialBalance || !selectedUser) {
       alert('Please fill in all fields');
       return;
     }
-    updateUser(selectedUser.id, {
+    if (normalizedEmail === ADMIN_CREDENTIALS.email) {
+      alert('This email is reserved for admin access');
+      return;
+    }
+    if (users.some((user) => user.id !== selectedUser.id && user.email.toLowerCase() === normalizedEmail)) {
+      alert('Email already exists');
+      return;
+    }
+
+    const updates: Partial<UserType> = {
       name: `${firstName} ${lastName}`,
-      email,
+      email: normalizedEmail,
       balance: parseFloat(initialBalance),
       accountType,
-      status
-    });
-    // Reset form
-    setFirstName('');
-    setLastName('');
-    setEmail('');
-    setInitialBalance('');
-    setAccountType('Standard');
-    setStatus('Active');
+      status,
+    };
+
+    if (password) {
+      updates.password = password;
+    }
+
+    updateUser(selectedUser.id, updates);
+    resetForm();
     setShowEditModal(false);
     setSelectedUser(null);
   };
@@ -284,7 +312,10 @@ export function Users() {
             >
               <div className="relative w-full max-w-2xl p-8 rounded-2xl bg-gradient-to-br from-[#141e32]/95 to-[#0a0e1a]/95 backdrop-blur-xl border border-[#c9a84c]/40 shadow-2xl">
                 <button
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    resetForm();
+                    setShowAddModal(false);
+                  }}
                   className="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 transition-colors"
                 >
                   <X className="w-5 h-5 text-white/70" />
@@ -346,6 +377,24 @@ export function Users() {
                     </div>
                   </div>
 
+                  {/* Password */}
+                  <div>
+                    <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                      <input
+                        type="text"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Create user password"
+                        required
+                        className="w-full pl-12 pr-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white placeholder:text-white/40 focus:border-[#c9a84c] focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
                   {/* Initial Balance */}
                   <div>
                     <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
@@ -401,7 +450,10 @@ export function Users() {
                   <div className="flex gap-3 pt-4">
                     <button
                       type="button"
-                      onClick={() => setShowAddModal(false)}
+                      onClick={() => {
+                        resetForm();
+                        setShowAddModal(false);
+                      }}
                       className="flex-1 px-6 py-3 border border-[#c9a84c]/40 text-white rounded-lg hover:border-[#c9a84c] transition-all"
                     >
                       Cancel
@@ -561,7 +613,10 @@ export function Users() {
             >
               <div className="relative w-full max-w-2xl p-8 rounded-2xl bg-gradient-to-br from-[#141e32]/95 to-[#0a0e1a]/95 backdrop-blur-xl border border-[#c9a84c]/40 shadow-2xl">
                 <button
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => {
+                    resetForm();
+                    setShowEditModal(false);
+                  }}
                   className="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 transition-colors"
                 >
                   <X className="w-5 h-5 text-white/70" />
@@ -623,6 +678,23 @@ export function Users() {
                     </div>
                   </div>
 
+                  {/* Password Reset */}
+                  <div>
+                    <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                      <input
+                        type="text"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Leave blank to keep current password"
+                        className="w-full pl-12 pr-4 py-3 rounded-lg bg-white/5 border border-[#c9a84c]/20 text-white placeholder:text-white/40 focus:border-[#c9a84c] focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
                   {/* Balance */}
                   <div>
                     <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
@@ -662,7 +734,10 @@ export function Users() {
                   <div className="flex gap-3 pt-4">
                     <button
                       type="button"
-                      onClick={() => setShowEditModal(false)}
+                      onClick={() => {
+                        resetForm();
+                        setShowEditModal(false);
+                      }}
                       className="flex-1 px-6 py-3 border border-[#c9a84c]/40 text-white rounded-lg hover:border-[#c9a84c] transition-all"
                     >
                       Cancel
